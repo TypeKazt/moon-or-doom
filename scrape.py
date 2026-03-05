@@ -3,13 +3,16 @@
 
 import json
 import sys
+import time
 from datetime import datetime, timezone
 
 import anthropic
-import praw
+import requests
 
 import config
 import db
+
+REDDIT_HEADERS = {"User-Agent": config.REDDIT_USER_AGENT}
 
 SYSTEM_PROMPT = """\
 You are a sentiment analyst specializing in theta gang / covered call options strategy.
@@ -59,66 +62,188 @@ Respond with ONLY valid JSON (no markdown fencing) in this exact structure:
 """
 
 
-def fetch_posts(subreddit_name):
-    """Fetch hot and new posts from a subreddit via PRAW."""
-    reddit = praw.Reddit(
-        client_id=config.REDDIT_CLIENT_ID,
-        client_secret=config.REDDIT_CLIENT_SECRET,
-        user_agent=config.REDDIT_USER_AGENT,
-    )
-    subreddit = reddit.subreddit(subreddit_name)
+def _reddit_get(url, params=None):
+    """Make a GET request to a Reddit .json endpoint with rate-limit handling."""
+    resp = requests.get(url, headers=REDDIT_HEADERS, params=params, timeout=15)
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get("Retry-After", 5))
+        print(f"  Rate limited, waiting {retry_after}s...")
+        time.sleep(retry_after)
+        resp = requests.get(url, headers=REDDIT_HEADERS, params=params, timeout=15)
+    resp.raise_for_status()
+    return resp.json()
 
+
+def _fetch_listing(subreddit_name, sort, limit):
+    """Fetch a listing (hot/new) page by page using .json endpoints."""
+    base_url = f"https://www.reddit.com/r/{subreddit_name}/{sort}.json"
+    collected = []
+    after = None
+
+    while len(collected) < limit:
+        batch = min(100, limit - len(collected))
+        params = {"limit": batch, "raw_json": 1}
+        if after:
+            params["after"] = after
+
+        data = _reddit_get(base_url, params)
+        children = data.get("data", {}).get("children", [])
+        if not children:
+            break
+
+        collected.extend(children)
+        after = data.get("data", {}).get("after")
+        if not after:
+            break
+        time.sleep(1)  # be polite
+
+    return collected
+
+
+def _fetch_comments(subreddit_name, post_id):
+    """Fetch top-level comments for a post via .json endpoint."""
+    url = f"https://www.reddit.com/r/{subreddit_name}/comments/{post_id}.json"
+    data = _reddit_get(url, params={"limit": config.COMMENT_LIMIT, "sort": "best", "raw_json": 1})
+    comments = []
+    if len(data) >= 2:
+        for child in data[1].get("data", {}).get("children", []):
+            if child.get("kind") != "t1":
+                continue
+            c = child["data"]
+            body = (c.get("body") or "")[:config.MAX_COMMENT_CHARS]
+            if body.strip():
+                comments.append({
+                    "author": c.get("author", "[deleted]"),
+                    "body": body,
+                    "score": c.get("score", 0),
+                })
+            if len(comments) >= config.COMMENT_LIMIT:
+                break
+    return comments
+
+
+def fetch_posts(subreddit_name):
+    """Fetch hot and new posts from a subreddit via Reddit .json endpoints."""
     seen_ids = set()
     posts = []
 
-    for listing in [subreddit.hot(limit=config.POST_LIMIT), subreddit.new(limit=config.POST_LIMIT)]:
-        for submission in listing:
-            if submission.fullname in seen_ids:
+    for sort in ["hot", "new"]:
+        children = _fetch_listing(subreddit_name, sort, config.POST_LIMIT)
+        for child in children:
+            if child.get("kind") != "t3":
                 continue
-            seen_ids.add(submission.fullname)
+            s = child["data"]
+            fullname = child["kind"] + "_" + s["id"]
+            if fullname in seen_ids:
+                continue
+            seen_ids.add(fullname)
 
-            # Gather top comments
-            submission.comment_sort = "best"
-            submission.comments.replace_more(limit=0)
-            comments = []
-            for comment in submission.comments[: config.COMMENT_LIMIT]:
-                body = (comment.body or "")[:config.MAX_COMMENT_CHARS]
-                if body.strip():
-                    comments.append({"author": str(comment.author), "body": body, "score": comment.score})
+            # Fetch comments for this post
+            print(f"  Fetching comments for: {s['title'][:60]}...")
+            comments = _fetch_comments(subreddit_name, s["id"])
+            time.sleep(1)  # rate-limit politeness
 
             posts.append({
-                "id": submission.fullname,
+                "id": fullname,
                 "subreddit": subreddit_name,
-                "title": submission.title,
-                "selftext": (submission.selftext or "")[:config.MAX_POST_CHARS],
-                "author": str(submission.author),
-                "score": submission.score,
-                "num_comments": submission.num_comments,
-                "created_utc": submission.created_utc,
-                "url": submission.url,
+                "title": s.get("title", ""),
+                "selftext": (s.get("selftext") or "")[:config.MAX_POST_CHARS],
+                "author": s.get("author", "[deleted]"),
+                "score": s.get("score", 0),
+                "num_comments": s.get("num_comments", 0),
+                "created_utc": s.get("created_utc", 0),
+                "url": s.get("url", ""),
                 "comments": comments,
             })
 
     return posts
 
 
-def build_text_bundle(posts):
-    """Build a text bundle from posts for the Claude prompt."""
-    lines = []
+def _format_post_block(p, weight_label=None):
+    """Format a single post (with comments) into a text block."""
+    tag = f" (weight: {weight_label})" if weight_label else ""
+    block = f"### [{p['score']} pts] {p['title']}{tag}\n"
+    if p["selftext"]:
+        block += p["selftext"] + "\n"
+    for c in p.get("comments", []):
+        block += f"  > [{c['score']} pts] {c['author']}: {c['body']}\n"
+    block += "\n"
+    return block
+
+
+def _collect_blocks(posts, budget, weight_label=None):
+    """Collect formatted blocks from posts up to a character budget."""
+    blocks = []
     total = 0
     for p in posts:
-        block = f"### [{p['score']} pts] {p['title']}\n"
-        if p["selftext"]:
-            block += p["selftext"] + "\n"
-        for c in p.get("comments", []):
-            block += f"  > [{c['score']} pts] {c['author']}: {c['body']}\n"
-        block += "\n"
-
-        if total + len(block) > config.MAX_BUNDLE_CHARS:
+        block = _format_post_block(p, weight_label)
+        if total + len(block) > budget:
             break
-        lines.append(block)
+        blocks.append(block)
         total += len(block)
-    return "".join(lines)
+    return blocks
+
+
+def build_text_bundle(posts):
+    """Build a weighted text bundle from posts for the Claude prompt.
+
+    Posts/comments from profiled authors get dedicated budget proportional
+    to their alpha weight. The general public shares the remainder.
+    """
+    weights = config.PROFILE_WEIGHTS
+    if not weights:
+        # No weights configured — flat bundle, all equal
+        return "".join(_collect_blocks(posts, config.MAX_BUNDLE_CHARS))
+
+    profiled_names = {name.lower() for name in weights}
+    general_weight = 1.0 - sum(weights.values())
+
+    # Partition posts into buckets: one per profiled author + general
+    buckets = {name.lower(): [] for name in weights}
+    buckets["_general"] = []
+
+    for p in posts:
+        author = (p.get("author") or "").lower()
+        if author in profiled_names:
+            buckets[author].append(p)
+        else:
+            buckets["_general"].append(p)
+
+    # Build header describing the weighting scheme
+    header_lines = ["## Source weighting\n"]
+    for name, alpha in sorted(weights.items(), key=lambda x: -x[1]):
+        header_lines.append(f"- u/{name}: {alpha:.2f}")
+    header_lines.append(f"- General public: {general_weight:.2f}")
+    header_lines.append("")
+    header_lines.append(
+        "Posts are grouped by weight tier. Higher-weight sources should "
+        "influence your analysis proportionally more.\n\n"
+    )
+    header = "\n".join(header_lines)
+
+    remaining = config.MAX_BUNDLE_CHARS - len(header)
+    sections = []
+
+    # Profiled author sections — each gets their alpha share of the budget
+    for name, alpha in sorted(weights.items(), key=lambda x: -x[1]):
+        budget = int(remaining * alpha)
+        author_posts = buckets[name.lower()]
+        if not author_posts:
+            continue
+        label = f"u/{name} — {alpha:.2f}"
+        blocks = _collect_blocks(author_posts, budget, weight_label=f"{alpha:.2f}")
+        if blocks:
+            sections.append(f"--- Profiled source: {label} ---\n")
+            sections.extend(blocks)
+
+    # General public section
+    general_budget = int(remaining * general_weight)
+    general_posts = buckets["_general"]
+    if general_posts:
+        sections.append(f"--- General public (weight: {general_weight:.2f}) ---\n")
+        sections.extend(_collect_blocks(general_posts, general_budget))
+
+    return header + "".join(sections)
 
 
 def analyze_with_claude(subreddit, post_bundle):
