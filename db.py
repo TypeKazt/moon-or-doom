@@ -48,6 +48,20 @@ def init_db():
             raw_response TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS notable_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subreddit TEXT NOT NULL,
+            analysis_id INTEGER NOT NULL,
+            link_url TEXT NOT NULL,
+            title TEXT,
+            author TEXT,
+            score INTEGER,
+            link_type TEXT NOT NULL,  -- 'post' or 'comment'
+            reason TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (analysis_id) REFERENCES sentiment_analyses(id)
+        );
+
         CREATE TABLE IF NOT EXISTS important_dates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             subreddit TEXT NOT NULL,
@@ -154,6 +168,43 @@ def upsert_dates(subreddit, dates, analysis_id):
         )
     conn.commit()
     conn.close()
+
+
+def insert_notable_links(subreddit, links, analysis_id):
+    if not links:
+        return
+    conn = get_connection()
+    for link in links:
+        conn.execute(
+            """INSERT INTO notable_links
+               (subreddit, analysis_id, link_url, title, author, score, link_type, reason)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                subreddit,
+                analysis_id,
+                link["url"],
+                link.get("title"),
+                link.get("author"),
+                link.get("score"),
+                link.get("type", "post"),
+                link.get("reason"),
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+
+def get_notable_links(subreddit, limit=10):
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT nl.*, sa.analyzed_at FROM notable_links nl
+           JOIN sentiment_analyses sa ON nl.analysis_id = sa.id
+           WHERE nl.subreddit = ?
+           ORDER BY nl.created_at DESC LIMIT ?""",
+        (subreddit, limit),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
 
 
 def get_latest_analysis(subreddit):

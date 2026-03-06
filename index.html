@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moon or Doom — r/ASTSpaceMobile</title>
+<style>
+:root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --dim: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --blue: #58a6ff;
+    --cyan: #39c5cf;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 1rem;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.1rem; margin-bottom: 0.75rem; color: var(--text); }
+p { margin: 0.5rem 0; }
+
+.panel {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    background: var(--surface);
+}
+.panel.blue { border-color: var(--blue); }
+.panel.green { border-color: var(--green); }
+.panel.yellow { border-color: var(--yellow); }
+.panel.red { border-color: var(--red); }
+
+.section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+th { color: var(--dim); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
+.right { text-align: right; }
+
+.badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+.badge.green { background: rgba(63,185,80,0.15); color: var(--green); }
+.badge.red { background: rgba(248,81,73,0.15); color: var(--red); }
+.badge.yellow { background: rgba(210,153,34,0.15); color: var(--yellow); }
+.badge.big { font-size: 1.1rem; padding: 0.3rem 0.75rem; }
+
+.score-bar {
+    position: relative;
+    height: 20px;
+    background: var(--border);
+    border-radius: 3px;
+    min-width: 160px;
+}
+.score-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 3px;
+    opacity: 0.6;
+}
+.score-label {
+    position: absolute;
+    right: 6px;
+    top: 0;
+    line-height: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.link-type {
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+.link-type.post { color: var(--cyan); }
+.link-type.comment { color: var(--blue); }
+
+.url-cell { white-space: nowrap; }
+.url-cell a { color: var(--dim); text-decoration: none; }
+.url-cell a:hover { color: var(--blue); text-decoration: underline; }
+
+.table-scroll { overflow-x: auto; }
+
+.dim { color: var(--dim); }
+
+@media (max-width: 768px) {
+    body { padding: 0.5rem; }
+    th, td { padding: 0.35rem 0.5rem; font-size: 0.78rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+    <div class="panel blue">
+        <h1>Moon or Doom</h1>
+        <p>r/ASTSpaceMobile  |  Last analyzed: 2026-03-06 19:40:23</p>
+    </div>
+
+    <div class="section">
+        <h2>Sentiment Analysis</h2>
+        <table>
+            <thead><tr>
+                <th>Timeframe</th><th>Sentiment</th><th>Score</th><th>Summary</th>
+            </tr></thead>
+            <tbody><tr>
+            <td><strong>Week</strong></td>
+            <td><span class="badge red">BEARISH</span></td>
+            <td><div class="score-bar"><div class="score-fill" style="width:42.5%;background:var(--red)"></div><span class="score-label">-15</span></div></td>
+            <td>Negative sentiment dominates as Starlink Direct-to-Cell testing in Africa highlights competitive threats to AST SpaceMobile&#x27;s market positioning.</td>
+        </tr><tr>
+            <td><strong>Month</strong></td>
+            <td><span class="badge red">BEARISH</span></td>
+            <td><div class="score-bar"><div class="score-fill" style="width:40.0%;background:var(--red)"></div><span class="score-label">-20</span></div></td>
+            <td>Starlink&#x27;s aggressive expansion into direct-to-cell services poses significant competitive pressure, potentially impacting AST&#x27;s African market strategy and partnership opportunities.</td>
+        </tr><tr>
+            <td><strong>Quarter</strong></td>
+            <td><span class="badge red">BEARISH</span></td>
+            <td><div class="score-bar"><div class="score-fill" style="width:37.5%;background:var(--red)"></div><span class="score-label">-25</span></div></td>
+            <td>Competitive landscape intensifies as Starlink demonstrates working technology and secures operator partnerships, challenging AST&#x27;s first-mover advantage in satellite-to-cellular connectivity.</td>
+        </tr></tbody>
+        </table>
+    </div>
+
+    <div class="panel yellow">
+        <h2>Covered Call Recommendation</h2>
+        <span class="badge yellow big">CAUTIOUS</span>
+        <p>While current sentiment is negative due to competitive concerns, there&#x27;s no immediate catalyst that would cause sharp price movements. The competitive threat is well-known and likely already reflected in the stock price. Sell conservative strikes further OTM to capture premium while limiting assignment risk if sentiment unexpectedly improves.</p>
+    </div>
+
+    <div class="section">
+        <h2>Upcoming Dates</h2>
+        <table>
+            <thead><tr>
+                <th>Date</th><th>Type</th><th>Description</th><th class="right">Days Until</th>
+            </tr></thead>
+            <tbody><tr><td colspan="4" class="dim">No upcoming dates tracked.</td></tr></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Notable Links</h2>
+        <div class="table-scroll">
+        <table>
+            <thead><tr>
+                <th>Type</th><th>Author</th><th class="right">Score</th>
+                <th>Title</th><th>Reason</th><th>URL</th>
+            </tr></thead>
+            <tbody><tr>
+                <td><span class="link-type post">post</span></td>
+                <td>Unknown</td>
+                <td class="right">73</td>
+                <td>MTN Zambia Tests Starlink Direct-to-Cell Service</td>
+                <td>High engagement post about competitive threat from Starlink in African market</td>
+                <td class="url-cell"><a href="https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/" target="_blank" rel="noopener">https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/</a></td>
+            </tr><tr>
+                <td><span class="link-type comment">comment</span></td>
+                <td>SneekyRussian</td>
+                <td class="right">32</td>
+                <td>MTN criticism comment</td>
+                <td>Highest scoring comment showing frustration with MTN operator choice</td>
+                <td class="url-cell"><a href="https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8z7dqb/" target="_blank" rel="noopener">https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8z7dqb/</a></td>
+            </tr><tr>
+                <td><span class="link-type comment">comment</span></td>
+                <td>Xtrendence</td>
+                <td class="right">19</td>
+                <td>Starlink technology critique</td>
+                <td>Questions Starlink&#x27;s technology claims with skepticism</td>
+                <td class="url-cell"><a href="https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8zbjya/" target="_blank" rel="noopener">https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8zbjya/</a></td>
+            </tr><tr>
+                <td><span class="link-type comment">comment</span></td>
+                <td>Aggravating_Roll7917</td>
+                <td class="right">14</td>
+                <td>Testing results interpretation</td>
+                <td>Attempts to find positive spin on limited testing results</td>
+                <td class="url-cell"><a href="https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8zbklm/" target="_blank" rel="noopener">https://www.reddit.com/r/ASTSpaceMobile/comments/1rmgga4/mtn_zambia_becomes_first_african_operator_to_test/o8zbklm/</a></td>
+            </tr></tbody>
+        </table>
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

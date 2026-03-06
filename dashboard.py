@@ -98,6 +98,33 @@ def render_dates_table(dates):
     return table
 
 
+def render_notable_links(links):
+    if not links:
+        return Panel("No notable links tracked.", title="Notable Links", border_style="dim")
+
+    table = Table(title="Notable Links", show_header=True, header_style="bold")
+    table.add_column("Type", width=8)
+    table.add_column("Author", width=16)
+    table.add_column("Score", width=6, justify="right")
+    table.add_column("Title", ratio=1)
+    table.add_column("Reason", ratio=1)
+    table.add_column("URL", no_wrap=True, style="dim")
+
+    for link in links:
+        link_type = link.get("link_type", "post")
+        style = "bold cyan" if link_type == "post" else "cyan"
+        table.add_row(
+            Text(link_type, style=style),
+            link.get("author", ""),
+            str(link.get("score", "")),
+            link.get("title", ""),
+            link.get("reason", ""),
+            link.get("link_url", ""),
+        )
+
+    return table
+
+
 def main():
     subreddit = config.SUBREDDIT
     db.init_db()
@@ -136,6 +163,11 @@ def main():
     # Dates
     dates = db.get_upcoming_dates(subreddit)
     console.print(render_dates_table(dates))
+    console.print()
+
+    # Notable Links
+    links = db.get_notable_links(subreddit)
+    console.print(render_notable_links(links))
     console.print()
 
 

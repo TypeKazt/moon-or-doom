@@ -57,8 +57,23 @@ Respond with ONLY valid JSON (no markdown fencing) in this exact structure:
       "event_type": "<earnings|launch|fcc|partnership|conference|other>",
       "description": "<what the event is>"
     }}
+  ],
+  "notable_links": [
+    {{
+      "url": "<the post or comment link from the data above>",
+      "title": "<short description of what the post/comment is about>",
+      "author": "<username>",
+      "score": <score>,
+      "type": "post" or "comment",
+      "reason": "<why this is notable — e.g. high engagement, key insight, important news>"
+    }}
   ]
-}}\
+}}
+
+For notable_links: include posts/comments that are especially significant — either from \
+profiled/weighted users, or from the general public if they have high engagement (high score \
+or many replies). Pick up to 10 most notable. Use the exact Link/Comment link URLs provided \
+in the data above.\
 """
 
 
@@ -116,6 +131,7 @@ def _fetch_comments(subreddit_name, post_id):
                     "author": c.get("author", "[deleted]"),
                     "body": body,
                     "score": c.get("score", 0),
+                    "permalink": "https://www.reddit.com" + c.get("permalink", ""),
                 })
             if len(comments) >= config.COMMENT_LIMIT:
                 break
@@ -136,23 +152,31 @@ def fetch_posts(subreddit_name):
             fullname = child["kind"] + "_" + s["id"]
             if fullname in seen_ids:
                 continue
+
+            title = s.get("title", "")
+            # Skip daily discussion threads
+            if "daily discussion" in title.lower():
+                continue
+
             seen_ids.add(fullname)
 
             # Fetch comments for this post
-            print(f"  Fetching comments for: {s['title'][:60]}...")
+            print(f"  Fetching comments for: {title[:60]}...")
             comments = _fetch_comments(subreddit_name, s["id"])
             time.sleep(1)  # rate-limit politeness
 
+            permalink = "https://www.reddit.com" + s.get("permalink", "")
             posts.append({
                 "id": fullname,
                 "subreddit": subreddit_name,
-                "title": s.get("title", ""),
+                "title": title,
                 "selftext": (s.get("selftext") or "")[:config.MAX_POST_CHARS],
                 "author": s.get("author", "[deleted]"),
                 "score": s.get("score", 0),
                 "num_comments": s.get("num_comments", 0),
                 "created_utc": s.get("created_utc", 0),
                 "url": s.get("url", ""),
+                "permalink": permalink,
                 "comments": comments,
             })
 
@@ -163,10 +187,12 @@ def _format_post_block(p, weight_label=None):
     """Format a single post (with comments) into a text block."""
     tag = f" (weight: {weight_label})" if weight_label else ""
     block = f"### [{p['score']} pts] {p['title']}{tag}\n"
+    block += f"Link: {p.get('permalink', '')}\n"
     if p["selftext"]:
         block += p["selftext"] + "\n"
     for c in p.get("comments", []):
         block += f"  > [{c['score']} pts] {c['author']}: {c['body']}\n"
+        block += f"    Comment link: {c.get('permalink', '')}\n"
     block += "\n"
     return block
 
@@ -318,6 +344,12 @@ def main():
     if dates:
         db.upsert_dates(subreddit, dates, analysis_id)
         print(f"  {len(dates)} important date(s) saved")
+
+    # Store notable links
+    notable = analysis.get("notable_links", [])
+    if notable:
+        db.insert_notable_links(subreddit, notable, analysis_id)
+        print(f"  {len(notable)} notable link(s) saved")
 
     # Summary
     print()
